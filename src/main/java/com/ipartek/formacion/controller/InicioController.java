@@ -1,6 +1,10 @@
 package com.ipartek.formacion.controller;
 
 import java.io.IOException;
+import java.lang.ProcessBuilder.Redirect;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.ArrayList;
 
 import javax.servlet.ServletException;
@@ -9,92 +13,125 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.ipartek.formacion.modelo.dao.impl.CategoriaDAOImpl;
-import com.ipartek.formacion.modelo.dao.impl.ProductoDAOImpl;
-import com.ipartek.formacion.modelo.pojo.Categoria;
-import com.ipartek.formacion.modelo.pojo.Producto;
+import org.apache.log4j.Logger;
+
+import com.ipartek.formacion.modelo.ConnectionManager;
+import com.ipartek.formacion.modelo.dao.EmpleadosDao;
+import com.ipartek.formacion.modelo.pojo.Departamento;
+import com.ipartek.formacion.modelo.pojo.Empleados;
+
 
 /**
- * Obtiene todos los productos categorizados para listar
- * 
- * @parametro idCategoria id categoria, si es null muestra todas, else muestra productos de esa categoria
- * @parametro categoria  nombre del categotegoria
- * 
- * 
- * @atributo encabezado titulo para h3 en index.jsp
- * @atributo categoriasConProductos ArrayList<Categoria>, que contiene tambien todos los productos de cada categoria
- * 
- * @view index.jsp
- * 
+ * Servlet implementation class InicioController
  */
 @WebServlet("/inicio")
 public class InicioController extends HttpServlet {
-	
 	private static final long serialVersionUID = 1L;
-	private static final String TODAS_LAS_CATEGORIAS = "-1";	
-	
-	private static final ProductoDAOImpl productoDAO = ProductoDAOImpl.getInstance();
-	private static final CategoriaDAOImpl categoriaDAO = CategoriaDAOImpl.getInstance();
-	
-	
+	private final static Logger LOG = Logger.getLogger(InicioController.class);
+	private final static EmpleadosDao dao = EmpleadosDao.getInstance();
+   
 	/**
 	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		doProcess(request, response);
+		
+		String palabraBusqueda = request.getParameter("search");
+		String mensajeG = "";
+		
+		ArrayList<Empleados> empleados = new ArrayList<Empleados>();
+		ArrayList<Departamento> departamentos = new ArrayList<Departamento>();
+		
+		try {
+			LOG.trace("Entramos al controlador/inicio");
+			
+			empleados = dao.buscar(palabraBusqueda);
+			
+			//empleados = dao.getAllEmpleados();
+			
+			departamentos = dao.getAllDepartamentos();
+			
+			if (palabraBusqueda != null && palabraBusqueda != "") {
+				mensajeG = "Se ha filtrado por <b>" + palabraBusqueda + "<b>";
+			}
+			
+		} catch (Exception e) {
+			LOG.error(e);
+		}
+		
+		request.setAttribute("empleados", empleados);
+		request.setAttribute("mensajeG", mensajeG);
+		request.setAttribute("departamentos", departamentos);
+		request.getRequestDispatcher("index.jsp").forward(request, response);
 	}
 
 	/**
 	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		doProcess(request, response);
-	}
+		
+		String nombre = request.getParameter("nombre");
+		String apellido1 = request.getParameter("apellido1");
+		String apellido2 = request.getParameter("apellido2");
+		String nif = request.getParameter("nif");
+		String depto = request.getParameter("departamento");
+		int codDepto = Integer.parseInt(depto);
+		
+		String mensaje = "";
+		
+		boolean isRediret = true;
+		
+		
+		try {
+			LOG.trace("Entramos al controlador/inicio formulario");
+			
+			Empleados empleado = new Empleados();
+			Departamento departamento = new Departamento();
+			
+			empleado.setNombre(nombre);
+			empleado.setApellido1(apellido1);
+			empleado.setApellido2(apellido2);
+			empleado.setNif(nif);
+			departamento.setCodigo(codDepto);
+			empleado.setDepartamento(departamento);
+			
+			dao.insert(empleado);
+			mensaje = "Se ha regsitrado con exito el nuevo empleado";
+			
+		} catch (Exception e) {
+			LOG.error(e);
+			mensaje = "Se ha producido un problema, porfavor vuelva a intentarlo";
+			
+			request.setAttribute("nombre", nombre);
+			request.setAttribute("apellido1", apellido1);
+			request.setAttribute("apellido2", apellido2);
+			request.setAttribute("nif", nif);
+			request.setAttribute("codDepto", codDepto);
+			
+			request.setAttribute("mensaje", mensaje);
+			request.setAttribute("empleados", dao.getAllEmpleados());
+			request.setAttribute("departamentos", dao.getAllDepartamentos());
 	
-	private void doProcess(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+			isRediret = false;
+			//request.getRequestDispatcher("index.jsp").forward(request, response);
 		
-		// parametros
-		String paramIdCategoria = ( request.getParameter("idCategoria") == null ) ? TODAS_LAS_CATEGORIAS : request.getParameter("idCategoria") ;
-		String paramCatNom =  ( request.getParameter("categoria") == null ) ? "Todas las Categorias" : request.getParameter("categoria");
-		
-		// Inicializar Atributos a retornar a la vista	
-		ArrayList<Categoria> categoriasConProductos = new ArrayList<Categoria> ();
-		String encabezado = "";
-		
-		
-		if ( TODAS_LAS_CATEGORIAS.equals(paramIdCategoria)) {		   		 // Todos los productos de todas las categorias
-		
-			//TODO ver como limitar en Java o SQL el numero de Productos 
-			categoriasConProductos = categoriaDAO.getAllWithProducts();			
-			encabezado = "Todos los Productos por Categoria";
+		}finally {
 			
-		}else {    										                       // producto de una categoria concreta
 			
-			// obtengo los productos
-			int idCategoria = Integer.parseInt(paramIdCategoria);
-			ArrayList<Producto> productos = productoDAO.getAllByCategoria( idCategoria, 10);
-				
-			//crear Categoria para añadir los productos			
-			Categoria c = new Categoria();			 
-			c.setId(idCategoria);
-			c.setNombre(paramCatNom);			
-			c.setProductos(productos);
+		
+			request.setAttribute("mensaje", mensaje);
 			
-			// guardar en el array la categoria
-			categoriasConProductos.add(c);
+			if (isRediret) {
+				response.sendRedirect("inicio?mensaje=" + mensaje);
+			}else {
+				request.getRequestDispatcher("index.jsp").forward(request, response);
+			}
 			
-			encabezado = "<b>" + productos.size() + "</b> Útimos productos de <b>" + paramCatNom + "</b>" ;
-				
+			//request.setAttribute("departamentos", dao.getAllDepartamentos());
+			//request.setAttribute("empleados", dao.getAllEmpleados());
+			
+			
 		}
 		
-		//atributos		
-		request.setAttribute("categoriasConProductos", categoriasConProductos );
-		request.setAttribute("encabezado", encabezado );
-		
-		//forward vista
-		request.getRequestDispatcher("index.jsp").forward(request, response);		
-		
 	}
-	
 
 }

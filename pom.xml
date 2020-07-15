@@ -3,10 +3,10 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.ipartek.formacion</groupId>
-	<artifactId>supermercado</artifactId>
+	<artifactId>uf2176_act2</artifactId>
 	<packaging>war</packaging>
 	<version>0.0.1</version>
-	<name>supermercado</name>
+	<name>uf2176_act2</name>
 
 	<!-- comunes para todo el POM -->
 	<properties>
@@ -121,6 +121,6 @@
 		</plugins>
 
 
-		<finalName>supermerkado-master</finalName>
+		<finalName>uf2176_act2</finalName>
 	</build>
 </project>
